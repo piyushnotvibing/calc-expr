@@ -14,9 +14,10 @@
     P' = * M P' | / M P' | epsilon
     M = A M'
     M' = ^ M | epsilon
-    A = T | R | (S)
-    T = 0 | 1Q | 2Q | ... | 9Q
-    R = T.TQ
+    A = T | N | R | (S)
+    T = 0 | 1 Q | 2 Q | ... | 9 Q
+    N = - 1Q | - 2 Q | ... | - 9 Q
+    R = T.TQ | N.TQ
     Q = TQ | epsilon
 */
 
@@ -25,7 +26,6 @@ use crate::{
     lexer::Token,
 };
 
-#[allow(dead_code)]
 #[derive(Debug, Clone)]
 pub enum Expr {
     Num(f64),
@@ -102,12 +102,12 @@ impl Parser {
                     let _ = self.advance();
                     let expr = self.parse_m()?;
                     lhs = Expr::Mul(Box::new(lhs), Box::new(expr))
-                },
+                }
                 Token::Slash => {
                     let _ = self.advance();
                     let expr = self.parse_m()?;
                     lhs = Expr::Div(Box::new(lhs), Box::new(expr))
-                },
+                }
                 _ => break,
             }
         }
@@ -126,7 +126,7 @@ impl Parser {
         let mut lhs = lhs;
         if let Some(token) = self.peek() {
             if *token != Token::Caret {
-                return Ok(lhs)
+                return Ok(lhs);
             }
 
             let _ = self.advance();

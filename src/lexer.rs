@@ -13,7 +13,7 @@ pub enum Token {
     RParen,
 }
 
-const FLOAT_CHARS: [char; 11] = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '.'];
+const FLOAT_CHARS: [char; 12] = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '.', '-'];
 const EPSILON: char = '#';
 
 pub fn tokenize(mut expr: String) -> Result<Vec<Token>, LexerError> {
@@ -70,6 +70,12 @@ fn push_token(
         literal.clear();
     }
 
+    // -3+4 should get tokenized to [Num(-3), Plus, Num(4)]
+    if token == Token::Minus && !literal_exists && a_number_follows_the_minus(&next_char) {
+        literal.push('-');
+        return Ok(());
+    }
+
     // implicit multiplication 1: 5(3 + 4) => 5 * (3 + 4) | (5 / 4)(3 + 5) => (5 / 4) * (3 + 5)
     if token == Token::LParen {
         if literal_exists {
@@ -111,8 +117,14 @@ fn a_number_does_not_follow_period(next_char: &char) -> bool {
     !['0', '1', '2', '3', '4', '5', '6', '7', '8', '9'].contains(next_char)
 }
 
+#[inline(always)]
+fn a_number_follows_the_minus(next_char: &char) -> bool {
+    ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9'].contains(next_char)
+}
+
 fn parse_and_push_num_token(literal: &str, tokens: &mut Vec<Token>) -> Result<(), LexerError> {
     if !literal.is_empty() {
+        // parse() handles negative numbers too, so "-34" becomes -34.
         let num = match literal.parse() {
             Ok(n) => n,
             Err(e) => return Err(LexerError::InvalidFloat(e)),
