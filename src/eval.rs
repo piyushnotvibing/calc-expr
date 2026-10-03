@@ -4,7 +4,12 @@ pub fn eval(expr: &Expr) -> Result<f64, EvalError> {
     match expr {
         Expr::Num(n) => Ok(*n),
         Expr::Add(l_expr, r_expr) => Ok(eval(l_expr)? + eval(r_expr)?),
-        Expr::Sub(l_expr, r_expr) => Ok(eval(l_expr)? - eval(r_expr)?),
+        Expr::Sub(l_expr, r_expr_opt) => {
+            if let Some(r_expr) = r_expr_opt {
+                return Ok(eval(l_expr)? - eval(r_expr)?)
+            }
+            return Ok(-eval(l_expr)?)
+        },
         Expr::Mul(l_expr, r_expr) => Ok(eval(l_expr)? * eval(r_expr)?),
         Expr::Div(l_expr, r_expr) => {
             let divisor = eval(r_expr)?;
@@ -20,6 +25,6 @@ pub fn eval(expr: &Expr) -> Result<f64, EvalError> {
                 return Err(EvalError::NaN);
             }
             Ok(base.powf(power))
-        }
+        },
     }
 }

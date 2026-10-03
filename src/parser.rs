@@ -14,7 +14,7 @@
     P' = * M P' | / M P' | epsilon
     M = A M'
     M' = ^ M | epsilon
-    A = T | N | R | (S)
+    A = T | N | R | (S) | - (S)
     T = 0 | 1 Q | 2 Q | ... | 9 Q
     N = - 1Q | - 2 Q | ... | - 9 Q
     R = T.TQ | N.TQ
@@ -30,7 +30,7 @@ use crate::{
 pub enum Expr {
     Num(f64),
     Add(Box<Expr>, Box<Expr>),
-    Sub(Box<Expr>, Box<Expr>),
+    Sub(Box<Expr>, Option<Box<Expr>>),
     Mul(Box<Expr>, Box<Expr>),
     Div(Box<Expr>, Box<Expr>),
     Pow(Box<Expr>, Box<Expr>),
@@ -78,7 +78,7 @@ impl Parser {
                 Token::Minus => {
                     let _ = self.advance();
                     let expr = self.parse_p()?;
-                    lhs = Expr::Sub(Box::new(lhs), Box::new(expr));
+                    lhs = Expr::Sub(Box::new(lhs), Some(Box::new(expr)));
                 }
                 _ => break,
             }
@@ -137,39 +137,57 @@ impl Parser {
         Ok(lhs)
     }
 
-    // A = T | R | (S)
+    // A = T | R | (S) | - (S)
     fn parse_a(&mut self) -> Result<Expr, ParserError> {
-        match self.peek() {
-            Some(&token) => {
-                match token {
-                    // If A = T | R, then return Expr::Num(n).
-                    Token::Num(n) => {
-                        let _ = self.advance();
-                        Ok(Expr::Num(n))
-                    }
-                    // If A = (S), return wtv expression S computes.
-                    Token::LParen => {
-                        let _ = self.advance();
-                        let expr = self.parse_s()?;
-                        if let Some(&token) = self.peek() {
-                            if token == Token::RParen {
-                                let _ = self.advance();
-                                return Ok(expr);
-                            } else {
-                                // If the token after '(S' is not ')', then the expression is invalid.
-                                return Err(InvalidExpr(Some(token), self.pos, "A"));
-                            }
-                        }
-                        // If there are no tokens left after '(S', then the expression is invalid.
-                        Err(InvalidExpr(None, self.pos, "A"))
-                    }
-                    // Any token other than a number or a left paranthesis is an invalid expression.
-                    _ => Err(ParserError::InvalidExpr(Some(token), self.pos, "A")),
+        if let Some(&token) = self.peek() {
+            match token {
+                // If A = T | R, then return Expr::Num(n).
+                Token::Num(n) => {
+                    let _ = self.advance();
+                    return Ok(Expr::Num(n))
                 }
+                // If A = (S), return wtv expression S computes.
+                Token::LParen => {
+                    let _ = self.advance();
+                    let expr = self.parse_s()?;
+                    if let Some(&token) = self.peek() {
+                        if token == Token::RParen {
+                            let _ = self.advance();
+                            return Ok(expr);
+                        } else {
+                            // If the token after '(S' is not ')', then the expression is invalid.
+                            return Err(InvalidExpr(Some(token), self.pos, "A"));
+                        }
+                    }
+                    // If there are no tokens left after '(S', then the expression is invalid.
+                    return Err(InvalidExpr(None, self.pos, "A"))
+                }
+                // If A = - (S), return the negative of wtv expression S computes.
+                Token::Minus => {
+                    let _ = self.advance();
+                    if let Some(&token) = self.peek() {
+                        if token == Token::LParen { 
+                            let _ = self.advance();
+                            let expr = self.parse_s()?;
+                            if let Some(&token) = self.peek() {
+                                if token == Token::RParen {
+                                    let _ = self.advance();
+                                    return Ok(Expr::Sub(Box::new(expr), None));
+                                } else {
+                                    return Err(InvalidExpr(Some(token), self.pos, "A"));
+                                }
+                            }
+                        } else {
+                            return Err(InvalidExpr(Some(token), self.pos, "A"));
+                        }
+                    }
+                    return Err(InvalidExpr(Some(token), self.pos, "A"))
+                }
+                // Any token other than a number or a left paranthesis is an invalid expression.
+                _ => return Err(ParserError::InvalidExpr(Some(token), self.pos, "A")),
             }
-            // If there is no token at current pos, then its invalid because A cannot be epsilon.
-            None => Err(ParserError::InvalidExpr(None, self.pos, "A")),
         }
+        return Err(ParserError::InvalidExpr(None, self.pos, "A"));
     }
 }
 
