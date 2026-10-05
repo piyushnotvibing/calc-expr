@@ -11,6 +11,9 @@ use parser::parse;
 mod eval;
 use eval::eval;
 
+mod functions;
+use crate::functions::Registry;
+
 
 fn main() {
     let args: Vec<String> = env::args().collect();
@@ -32,7 +35,8 @@ fn main() {
 
     println!("{:?}", expr);
 
-    let res = match eval(&expr) {
+    let registry = Registry::build();
+    let res = match eval(&expr, &registry) {
         Ok(value) => value,
         Err(e) => panic!("{e}"),
     };
